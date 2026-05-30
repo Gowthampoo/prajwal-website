@@ -1329,11 +1329,11 @@
             const cap = typeof item === 'object' ? (item.caption || '') : '';
             const slide = document.createElement('div');
             slide.className = 'slide' + (i === 0 ? ' active' : '');
-            slide.innerHTML = \`
-              <img src="\${src}" alt="\${cap}" loading="lazy" />
+            slide.innerHTML = `
+              <img src="${src}" alt="${cap}" loading="lazy" />
               <div class="slide-overlay"></div>
-              \${cap ? \`<div class="slide-caption">\${cap}</div>\` : ''}
-            \`;
+              ${cap ? `<div class="slide-caption">${cap}</div>` : ''}
+            `;
             inner.insertBefore(slide, document.getElementById('slideDots'));
 
             const dot = document.createElement('button');
