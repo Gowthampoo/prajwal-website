@@ -175,6 +175,13 @@
       opacity:0;transition:opacity 0.3s;
     }
     .preview-item:hover .overlay{opacity:1;}
+    .aspect-badge{
+      position:absolute;bottom:8px;right:8px;
+      background:rgba(0,0,0,0.85);color:#fff;
+      font-size:0.55rem;letter-spacing:0.1em;
+      padding:3px 7px;font-family:var(--font);
+      pointer-events:none;z-index:2;
+    }
     .preview-item .tag{
       position:absolute;top:8px;left:8px;
       background:rgba(0,0,0,0.7);color:var(--white);
@@ -390,13 +397,12 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/fireba
 import { getFirestore, doc, getDoc, setDoc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
 const _fbApp = initializeApp({
-  apiKey: "AIzaSyD2EspivyXn-Cv_8OVU876n1Ryp3K83iRA",
-  authDomain: "prajwal-e6463.firebaseapp.com",
-  projectId: "prajwal-e6463",
-  storageBucket: "prajwal-e6463.firebasestorage.app",
-  messagingSenderId: "694823684452",
-  appId: "1:694823684452:web:2592a86a1598ceda9c9271",
-  measurementId: "G-DRTKLZV6PB",
+  apiKey: "AIzaSyBEpoz0lzWSi42_Nl7YyoZvpGdLMSfDNDA",
+  authDomain: "prajwal-6f7f1.firebaseapp.com",
+  projectId: "prajwal-6f7f1",
+  storageBucket: "prajwal-6f7f1.firebasestorage.app",
+  messagingSenderId: "264716592543",
+  appId: "1:264716592543:web:15294302ca029435f589aa",
 });
 const _db = getFirestore(_fbApp);
 const _docRef = doc(_db, 'site', 'images');
@@ -617,10 +623,20 @@ function renderGrid(gridId, items, onDelete) {
     div.innerHTML = `
       <img src="${src}" alt="${name}" loading="lazy" onerror="this.style.opacity=0.2;this.alt='Image failed to load — check Drive sharing settings'" />
       ${tag ? `<div class="tag">${tag}</div>` : ''}
+      <div class="aspect-badge">—</div>
       <div class="overlay">
         ${name ? `<div style="font-size:0.65rem;color:#fff;margin-bottom:6px;">${name}</div>` : ''}
         <button class="btn-del" data-i="${i}">Delete</button>
       </div>`;
+    const img = div.querySelector('img');
+    const badge = div.querySelector('.aspect-badge');
+    img.addEventListener('load', () => {
+      const w = img.naturalWidth, h = img.naturalHeight;
+      const g = (a,b) => b === 0 ? a : g(b, a % b);
+      const d = g(w,h);
+      badge.textContent = `${w/d}:${h/d} (${w}×${h})`;
+    });
+    img.addEventListener('error', () => { badge.textContent = 'failed'; });
     div.querySelector('.btn-del').addEventListener('click', () => { onDelete(i); });
     grid.appendChild(div);
   });
@@ -723,10 +739,19 @@ function renderSlideshow() {
     div.innerHTML = `
       <img src="${src}" alt="${cap}" loading="lazy" onerror="this.style.opacity=0.2" />
       ${cap ? `<div class="tag">${cap}</div>` : ''}
+      <div class="aspect-badge">—</div>
       <div class="overlay">
         ${cap ? `<div style="font-size:0.65rem;color:#fff;margin-bottom:6px;">${cap}</div>` : ''}
         <button class="btn-del" data-i="${i}">Delete</button>
       </div>`;
+    const sImg = div.querySelector('img');
+    const sBadge = div.querySelector('.aspect-badge');
+    sImg.addEventListener('load', () => {
+      const w = sImg.naturalWidth, h = sImg.naturalHeight;
+      const g = (a,b) => b === 0 ? a : g(b, a % b);
+      const d = g(w,h);
+      sBadge.textContent = `${w/d}:${h/d} (${w}×${h})`;
+    });
     div.querySelector('.btn-del').addEventListener('click', async () => {
       const a = loadData(KEYS.slideshow); a.splice(i,1);
       await saveData(KEYS.slideshow, a); renderSlideshow(); toast('Slide removed');
