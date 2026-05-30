@@ -1330,6 +1330,7 @@
             const slide = document.createElement('div');
             slide.className = 'slide' + (i === 0 ? ' active' : '');
             slide.innerHTML = `
+              <img class="slide-bg-blur" src="${src}" alt="" aria-hidden="true" />
               <img src="${src}" alt="${cap}" loading="lazy" />
               <div class="slide-overlay"></div>
               ${cap ? `<div class="slide-caption">${cap}</div>` : ''}
