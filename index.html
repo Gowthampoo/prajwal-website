@@ -1197,12 +1197,18 @@
     // Images are saved by the Admin Panel → stored in Firebase → loaded here
     // for ALL visitors worldwide automatically.
 
-    // Normalize old lh3 URLs to drive thumbnail format
+    // Normalize Drive URLs to working cross-origin format
     function normalizeDriveUrl(url) {
       if (!url) return url;
-      if (url.includes("drive.google.com/thumbnail")) return url;
-      const m = url.match(/lh3\.googleusercontent\.com\/d\/([a-zA-Z0-9_-]+)/);
-      if (m) return `https://drive.google.com/thumbnail?id=${m[1]}&sz=w1200`;
+      // Extract ID from thumbnail format
+      const mt = url.match(/drive\.google\.com\/thumbnail\?id=([a-zA-Z0-9_-]+)/);
+      if (mt) return `https://lh3.googleusercontent.com/d/${mt[1]}`;
+      // Extract ID from /file/d/ format
+      const mf = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+      if (mf) return `https://lh3.googleusercontent.com/d/${mf[1]}`;
+      // Already lh3 format
+      const ml = url.match(/lh3\.googleusercontent\.com\/d\/([a-zA-Z0-9_-]+)/);
+      if (ml) return `https://lh3.googleusercontent.com/d/${ml[1]}`;
       return url;
     }
 
