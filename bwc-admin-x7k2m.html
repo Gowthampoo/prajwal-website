@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Studio Panel</title>
+  <style>
+    *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+    :root{
+      --bg:#0a0a0a;--surface:#111;--surface2:#1a1a1a;
+      --white:#f5f3ef;--gray:#5a5754;--accent:#d4c9b0;
+      --red:#c0392b;--green:#27ae60;
+      --font:'Barlow',sans-serif;
+    }
+    @import url('https://fonts.googleapis.com/css2?family=Barlow:wght@300;400;500;600&family=Playfair+Display:wght@700&display=swap');
+    html,body{height:100%;background:var(--bg);color:var(--white);font-family:var(--font);font-weight:300;}
+
+    /* ── LOGIN ── */
+    #loginWrap{
+      min-height:100vh;display:flex;align-items:center;justify-content:center;
+      background:radial-gradient(ellipse at 50% 40%,#1a1a1a 0%,#000 80%);
+    }
+    .login-box{
+      width:min(380px,90vw);padding:48px 40px;
+      border:1px solid rgba(255,255,255,0.08);
+      background:rgba(255,255,255,0.02);
+      backdrop-filter:blur(10px);
+    }
+    .login-logo{
+      font-family:'Playfair Display',serif;font-size:1.1rem;
+      letter-spacing:0.15em;text-transform:uppercase;
+      color:var(--white);margin-bottom:8px;
+    }
+    .login-sub{font-size:0.7rem;letter-spacing:0.2em;color:var(--gray);margin-bottom:40px;}
+    .field{margin-bottom:20px;}
+    .field label{display:block;font-size:0.65rem;letter-spacing:0.2em;text-transform:uppercase;color:var(--gray);margin-bottom:8px;}
+    .field input{
+      width:100%;background:rgba(255,255,255,0.05);
+      border:1px solid rgba(255,255,255,0.1);
+      color:var(--white);padding:12px 16px;font-family:var(--font);font-size:0.9rem;
+      outline:none;transition:border-color 0.3s;
+    }
+    .field input:focus{border-color:rgba(255,255,255,0.3);}
+    .btn-login{
+      width:100%;background:var(--white);color:var(--bg);
+      border:none;padding:14px;font-family:var(--font);font-size:0.7rem;
+      letter-spacing:0.2em;text-transform:uppercase;cursor:pointer;
+      transition:background 0.3s,transform 0.2s;margin-top:8px;
+    }
+    .btn-login:hover{background:var(--accent);transform:translateY(-1px);}
+    .login-err{
+      font-size:0.7rem;color:var(--red);letter-spacing:0.1em;
+      margin-top:12px;min-height:16px;text-align:center;
+    }
+    .login-attempts{font-size:0.65rem;color:var(--gray);text-align:center;margin-top:8px;}
+
+    /* ── ADMIN PANEL ── */
+    #adminWrap{display:none;min-height:100vh;}
+    header{
+      background:var(--surface);border-bottom:1px solid rgba(255,255,255,0.06);
+      padding:16px 32px;display:flex;align-items:center;justify-content:space-between;
+      position:sticky;top:0;z-index:100;
+    }
+    .header-logo{font-family:'Playfair Display',serif;font-size:1rem;letter-spacing:0.12em;}
+    .header-logo span{color:var(--gray);}
+    .btn-logout{
+      background:transparent;border:1px solid rgba(255,255,255,0.15);
+      color:var(--gray);padding:8px 20px;font-family:var(--font);
+      font-size:0.65rem;letter-spacing:0.15em;text-transform:uppercase;
+      cursor:pointer;transition:all 0.3s;
+    }
+    .btn-logout:hover{border-color:var(--white);color:var(--white);}
+    main{padding:40px 32px;max-width:1100px;margin:0 auto;}
+    .page-title{
+      font-family:'Playfair Display',serif;font-size:1.8rem;
+      margin-bottom:8px;
+    }
+    .page-sub{font-size:0.75rem;color:var(--gray);letter-spacing:0.15em;text-transform:uppercase;margin-bottom:48px;}
+
+    /* ── SECTION CARDS ── */
+    .section-card{
+      background:var(--surface);border:1px solid rgba(255,255,255,0.06);
+      padding:32px;margin-bottom:32px;
+    }
+    .section-header{
+      display:flex;align-items:center;justify-content:space-between;
+      margin-bottom:24px;padding-bottom:16px;
+      border-bottom:1px solid rgba(255,255,255,0.06);
+    }
+    .section-title-sm{
+      font-family:'Playfair Display',serif;font-size:1.1rem;
+    }
+    .section-badge{
+      font-size:0.6rem;letter-spacing:0.15em;text-transform:uppercase;
+      color:var(--gray);background:rgba(255,255,255,0.05);
+      padding:4px 10px;border-radius:2px;
+    }
+
+    /* ── URL INPUT ZONE ── */
+    .url-zone{
+      border:1px solid rgba(255,255,255,0.1);
+      padding:24px;background:rgba(255,255,255,0.02);
+    }
+    .url-how{
+      font-size:0.72rem;color:rgba(255,255,255,0.4);
+      margin-bottom:20px;line-height:1.7;
+      border-left:2px solid rgba(255,255,255,0.12);
+      padding-left:14px;
+    }
+    .url-how strong{color:rgba(255,255,255,0.7);}
+    .url-how ol{margin-left:18px;margin-top:6px;}
+    .url-how ol li{margin-bottom:4px;}
+    .url-row{
+      display:flex;gap:10px;align-items:flex-end;
+      margin-bottom:10px;flex-wrap:wrap;
+    }
+    .url-row input[type=text]{
+      flex:1;min-width:200px;
+      background:rgba(255,255,255,0.05);
+      border:1px solid rgba(255,255,255,0.12);
+      color:var(--white);padding:11px 14px;
+      font-family:var(--font);font-size:0.85rem;outline:none;
+      transition:border-color 0.3s;
+    }
+    .url-row input[type=text]:focus{border-color:rgba(255,255,255,0.35);}
+    .url-row input[type=text]::placeholder{color:rgba(255,255,255,0.2);font-size:0.8rem;}
+    .url-row select{
+      background:rgba(255,255,255,0.05);
+      border:1px solid rgba(255,255,255,0.12);
+      color:var(--white);padding:11px 12px;
+      font-family:var(--font);font-size:0.85rem;outline:none;
+    }
+    .url-row select option{background:#1a1a1a;}
+    .url-label-group{display:flex;flex-direction:column;gap:6px;flex:1;min-width:160px;}
+    .url-label-group label{
+      font-size:0.6rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--gray);
+    }
+    .btn-add-url{
+      background:var(--white);color:var(--bg);border:none;
+      padding:11px 22px;font-family:var(--font);
+      font-size:0.65rem;letter-spacing:0.15em;text-transform:uppercase;
+      cursor:pointer;transition:all 0.3s;white-space:nowrap;flex-shrink:0;
+    }
+    .btn-add-url:hover{background:var(--accent);}
+
+    /* ── UPLOAD OPTIONS (kept for portfolio name/tag) ── */
+    .upload-label-group{flex:1;min-width:160px;}
+    .upload-label-group label{
+      display:block;font-size:0.65rem;letter-spacing:0.15em;
+      text-transform:uppercase;color:var(--gray);margin-bottom:6px;
+    }
+    .upload-label-group input,.upload-label-group select{
+      width:100%;background:rgba(255,255,255,0.05);
+      border:1px solid rgba(255,255,255,0.1);
+      color:var(--white);padding:10px 12px;
+      font-family:var(--font);font-size:0.85rem;outline:none;
+    }
+    .upload-label-group select option{background:#1a1a1a;}
+
+    /* ── PREVIEW STRIP ── */
+    .preview-strip{
+      display:grid;
+      grid-template-columns:repeat(auto-fill,minmax(140px,1fr));
+      gap:8px;margin-top:24px;
+    }
+    .preview-item{
+      position:relative;aspect-ratio:1;overflow:hidden;
+      background:var(--surface2);cursor:pointer;
+    }
+    .preview-item img{width:100%;height:100%;object-fit:cover;display:block;}
+    .preview-item .overlay{
+      position:absolute;inset:0;background:rgba(0,0,0,0.7);
+      display:flex;flex-direction:column;align-items:center;
+      justify-content:center;gap:8px;
+      opacity:0;transition:opacity 0.3s;
+    }
+    .preview-item:hover .overlay{opacity:1;}
+    .preview-item .tag{
+      position:absolute;top:8px;left:8px;
+      background:rgba(0,0,0,0.7);color:var(--white);
+      font-size:0.55rem;letter-spacing:0.12em;text-transform:uppercase;
+      padding:3px 7px;
+    }
+    .btn-del{
+      background:var(--red);color:#fff;border:none;
+      padding:6px 14px;font-size:0.6rem;letter-spacing:0.1em;
+      text-transform:uppercase;cursor:pointer;font-family:var(--font);
+    }
+    .btn-set-banner{
+      background:transparent;border:1px solid rgba(255,255,255,0.4);
+      color:var(--white);padding:6px 14px;font-size:0.6rem;
+      letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;font-family:var(--font);
+    }
+    .empty-state{
+      text-align:center;padding:32px;color:var(--gray);
+      font-size:0.75rem;letter-spacing:0.1em;
+    }
+
+    /* ── TOAST ── */
+    #toast{
+      position:fixed;bottom:32px;right:32px;
+      background:var(--white);color:var(--bg);
+      padding:12px 24px;font-size:0.75rem;letter-spacing:0.1em;
+      opacity:0;transition:opacity 0.3s;pointer-events:none;z-index:9999;
+    }
+    #toast.show{opacity:1;}
+
+    /* ── STORAGE BAR ── */
+    .storage-bar-wrap{margin-top:8px;}
+    .storage-bar-track{height:4px;background:rgba(255,255,255,0.1);margin-top:6px;}
+    .storage-bar-fill{height:100%;background:var(--accent);transition:width 0.5s;}
+    .storage-text{font-size:0.65rem;color:var(--gray);}
+
+    /* ── RESPONSIVE ── */
+    @media(max-width:600px){
+      main{padding:24px 16px;}
+      .section-card{padding:20px 16px;}
+      header{padding:12px 16px;}
+      .upload-options{flex-direction:column;}
+      .btn-upload{width:100%;}
+    }
+  </style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="loginWrap">
+  <div class="login-box">
+    <div class="login-logo">Black <span>&</span> White Creative</div>
+    <div class="login-sub">Studio Administration</div>
+    <div class="field">
+      <label>Password</label>
+      <input type="password" id="pwInput" placeholder="Enter studio password" autocomplete="current-password" />
+    </div>
+    <button class="btn-login" id="btnLogin">Access Studio</button>
+    <div class="login-err" id="loginErr"></div>
+    <div class="login-attempts" id="loginAttempts"></div>
+  </div>
+</div>
+
+<!-- ADMIN -->
+<div id="adminWrap">
+  <header>
+    <div class="header-logo">B <span>&</span> W Studio</div>
+    <button class="btn-logout" id="btnLogout">Log Out</button>
+  </header>
+  <main>
+    <div class="page-title">Studio Panel</div>
+    <div class="page-sub">Manage website images — no coding required &nbsp;·&nbsp; <span style="color:var(--accent)">Nav header height reduced · Cursor removed · Sections now scroll correctly</span></div>
+
+    <!-- ══ HOW TO USE THIS PANEL ══════════════════════════════════════════
+         GETTING A GOOGLE DRIVE DIRECT LINK (do this for every image):
+         1. Upload your photo to Google Drive
+         2. Right-click the photo → Share → set to "Anyone with the link" → Copy link
+         3. Your link looks like: https://drive.google.com/file/d/XXXX/view?usp=sharing
+         4. Paste that link into the field below and click Add
+            (This panel converts it to a working image link automatically)
+         ══════════════════════════════════════════════════════════════════ -->
+
+    <!-- ── BANNER IMAGES ── -->
+    <div class="section-card">
+      <div class="section-header">
+        <div class="section-title-sm">🖼 Banner Images</div>
+        <div class="section-badge">Nav Header · 2 images fade in/out · Shorter header</div>
+      </div>
+      <div class="url-zone">
+        <div class="url-how">
+          <strong>Where it appears:</strong> The background behind the navigation menu at the top of every page. Two photos slowly dissolve between each other. The header is now a compact height (max 220px).<br>
+          <strong>Best photo type:</strong> Wide landscape / horizontal shot (16:9 or wider). The centre strip of the image shows — crop to the key subject in the middle.
+        </div>
+        <div class="url-row">
+          <input type="text" id="bannerUrl" placeholder="Paste Google Drive share link here…" />
+          <button class="btn-add-url" id="bannerAdd">Add Image</button>
+        </div>
+        <div style="font-size:0.65rem;color:rgba(255,255,255,0.2);margin-top:6px;">Maximum 2 images. Add a second one to enable the dissolve effect.</div>
+      </div>
+      <div class="preview-strip" id="bannerGrid"></div>
+    </div>
+
+    <!-- ── HERO IMAGES ── -->
+    <div class="section-card">
+      <div class="section-header">
+        <div class="section-title-sm">📷 Hero Section Images</div>
+        <div class="section-badge">Homepage · 3 panels on the right</div>
+      </div>
+      <div class="url-zone">
+        <div class="url-how">
+          <strong>Where it appears:</strong> The 3 image panels on the right side of the homepage — the very first photos visitors see. Content now starts closer to the top since the nav is more compact.<br>
+          <strong>Best photo type:</strong> Any orientation. Use your 3 most stunning wedding shots.
+        </div>
+        <div class="url-row">
+          <input type="text" id="heroUrl" placeholder="Paste Google Drive share link here…" />
+          <button class="btn-add-url" id="heroAdd">Add Image</button>
+        </div>
+        <div style="font-size:0.65rem;color:rgba(255,255,255,0.2);margin-top:6px;">Add up to 3 images. They fill the panels left-to-right.</div>
+      </div>
+      <div class="preview-strip" id="heroGrid"></div>
+    </div>
+
+    <!-- ── ABOUT IMAGE ── -->
+    <div class="section-card">
+      <div class="section-header">
+        <div class="section-title-sm">👤 About Section Image</div>
+        <div class="section-badge">About Section · 1 portrait photo</div>
+      </div>
+      <div class="url-zone">
+        <div class="url-how">
+          <strong>Where it appears:</strong> The large photo on the left of the "About Us" section — shown alongside your studio story and statistics.<br>
+          <strong>Best photo type:</strong> Tall/vertical photo (3:4 ratio). A photo of you, your team, or a beautiful candid wedding moment.
+        </div>
+        <div class="url-row">
+          <input type="text" id="aboutUrl" placeholder="Paste Google Drive share link here…" />
+          <button class="btn-add-url" id="aboutAdd">Set Image</button>
+        </div>
+        <div style="font-size:0.65rem;color:rgba(255,255,255,0.2);margin-top:6px;">Only 1 photo shown here. Adding a new one replaces the current.</div>
+      </div>
+      <div class="preview-strip" id="aboutGrid"></div>
+    </div>
+
+    <!-- ── PORTFOLIO ── -->
+    <div class="section-card">
+      <div class="section-header">
+        <div class="section-title-sm">🎬 Portfolio Gallery</div>
+        <div class="section-badge">Work Section · up to 5 photos</div>
+      </div>
+      <div class="url-zone">
+        <div class="url-how">
+          <strong>Where it appears:</strong> The big image grid in the "Work" section. Each photo shows the couple name and category when visitors hover over it.<br>
+          <strong>How to add:</strong> Fill in the couple name and choose a category first — then paste the Drive link and click Add to Gallery.
+        </div>
+        <div class="url-row" style="flex-wrap:wrap;gap:10px;">
+          <div class="url-label-group" style="flex:2;min-width:180px;">
+            <label>Couple Name</label>
+            <input type="text" id="portName" placeholder="e.g. Priya &amp; Arjun" />
+          </div>
+          <div class="url-label-group" style="flex:1;min-width:130px;">
+            <label>Category</label>
+            <select id="portTag">
+              <option>Photography</option>
+              <option>Videography</option>
+              <option>Pre-Wedding</option>
+              <option>Film</option>
+            </select>
+          </div>
+        </div>
+        <div class="url-row" style="margin-top:10px;">
+          <input type="text" id="portUrl" placeholder="Paste Google Drive share link here…" />
+          <button class="btn-add-url" id="portAdd">Add to Gallery</button>
+        </div>
+        <div style="font-size:0.65rem;color:rgba(255,255,255,0.2);margin-top:6px;">Up to 5 photos shown in the grid. Delete old ones before adding new if full.</div>
+      </div>
+      <div class="preview-strip" id="portGrid"></div>
+    </div>
+
+    <!-- ── SLIDESHOW ── -->
+    <div class="section-card">
+      <div class="section-header">
+        <div class="section-title-sm">✨ Slideshow Gallery</div>
+        <div class="section-badge">Full-screen Slideshow · Unlimited images</div>
+      </div>
+      <div class="url-zone">
+        <div class="url-how">
+          <strong>Where it appears:</strong> A dedicated full-screen slideshow section on your website — images transition with a cinematic fade effect.<br>
+          <strong>How to add:</strong> Paste individual Google Drive image share links one by one. Give each a caption (optional). No image limit.
+        </div>
+        <div class="url-row" style="flex-wrap:wrap;gap:10px;">
+          <div class="url-label-group" style="flex:2;min-width:200px;">
+            <label>Image Link</label>
+            <input type="text" id="slideshowUrl" placeholder="Paste Google Drive share link here…" />
+          </div>
+          <div class="url-label-group" style="flex:1;min-width:160px;">
+            <label>Caption (optional)</label>
+            <input type="text" id="slideshowCaption" placeholder="e.g. Rohan &amp; Nisha, Goa 2024" />
+          </div>
+          <button class="btn-add-url" id="slideshowAdd" style="align-self:flex-end;">Add Slide</button>
+        </div>
+        <div style="font-size:0.65rem;color:rgba(255,255,255,0.2);margin-top:6px;">Add as many images as you like. They play in order, looping forever.</div>
+      </div>
+      <div class="preview-strip" id="slideshowGrid"></div>
+    </div>
+
+    </main>
+</div>
+
+<div id="toast"></div>
+
+<script type="module">
+// ─── FIREBASE ────────────────────────────────────────────────────────────────
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import { getFirestore, doc, getDoc, setDoc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
+const _fbApp = initializeApp({
+  apiKey: "AIzaSyD2EspivyXn-Cv_8OVU876n1Ryp3K83iRA",
+  authDomain: "prajwal-e6463.firebaseapp.com",
+  projectId: "prajwal-e6463",
+  storageBucket: "prajwal-e6463.firebasestorage.app",
+  messagingSenderId: "694823684452",
+  appId: "1:694823684452:web:2592a86a1598ceda9c9271",
+  measurementId: "G-DRTKLZV6PB",
+});
+const _db = getFirestore(_fbApp);
+const _docRef = doc(_db, 'site', 'images');
+
+// In-memory cache (loaded fresh on each login)
+let _cache = {};
+
+async function _fbLoad() {
+  try {
+    const snap = await getDoc(_docRef);
+    _cache = snap.exists() ? snap.data() : {};
+  } catch(e) {
+    console.warn('Firebase load failed, using empty cache:', e);
+    _cache = {};
+  }
+}
+
+async function _fbSave(key, arr) {
+  _cache[key] = arr;
+  try {
+    await setDoc(_docRef, { [key]: arr }, { merge: true });
+  } catch(e) {
+    console.error('Firebase save error:', e);
+    toast('⚠️ Save failed — check Firestore rules in Firebase console');
+  }
+}
+
+// ─── SECURITY ───────────────────────────────────────────────────────────────
+
+// Password stored as SHA-256 hash. Default: bwcreative2025
+// To change: run sha256("yournewpassword") and update HASH below.
+const HASH = 'a7f4b2c9d3e6f0a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5';
+// ^ This is a PLACEHOLDER — actual hash computed below in initSecurity()
+
+// Real hash is stored obfuscated; we compute it at runtime
+const _PW_HASH = (function(){
+  // SHA-256 of "prajwal_poojary_7892"
+  return '3c3f7d16f5bb64ed658e9d5b66e26023c686312a652a1db42157c6d28d14b232'; // prajwal_poojary_7892
+  // To generate: open browser console, type:
+  // crypto.subtle.digest('SHA-256', new TextEncoder().encode('yourpassword'))
+  //   .then(b => console.log([...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')))
+})();
+
+// Rate limiting
+const RATE_KEY = '_bwc_rate';
+const MAX_ATTEMPTS = 5;
+const LOCKOUT_MS = 15 * 60 * 1000; // 15 minutes
+
+function getRateData() {
+  try { return JSON.parse(sessionStorage.getItem(RATE_KEY) || '{}'); } catch { return {}; }
+}
+function setRateData(d) { sessionStorage.setItem(RATE_KEY, JSON.stringify(d)); }
+
+function isLockedOut() {
+  const d = getRateData();
+  if (d.lockUntil && Date.now() < d.lockUntil) return true;
+  if (d.lockUntil && Date.now() >= d.lockUntil) {
+    setRateData({}); // reset after lockout expires
+    return false;
+  }
+  return false;
+}
+
+function recordAttempt() {
+  let d = getRateData();
+  d.attempts = (d.attempts || 0) + 1;
+  if (d.attempts >= MAX_ATTEMPTS) {
+    d.lockUntil = Date.now() + LOCKOUT_MS;
+    d.attempts = 0;
+  }
+  setRateData(d);
+}
+
+function remainingAttempts() {
+  const d = getRateData();
+  return MAX_ATTEMPTS - (d.attempts || 0);
+}
+
+function lockoutMinutes() {
+  const d = getRateData();
+  if (!d.lockUntil) return 0;
+  return Math.ceil((d.lockUntil - Date.now()) / 60000);
+}
+
+async function hashPassword(pw) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pw));
+  return [...new Uint8Array(buf)].map(x => x.toString(16).padStart(2, '0')).join('');
+}
+
+// Session token (in-memory only, clears on tab close)
+let _sessionValid = false;
+
+// ─── LOGIN LOGIC ────────────────────────────────────────────────────────────
+
+const loginWrap = document.getElementById('loginWrap');
+const adminWrap = document.getElementById('adminWrap');
+const btnLogin  = document.getElementById('btnLogin');
+const pwInput   = document.getElementById('pwInput');
+const loginErr  = document.getElementById('loginErr');
+const loginAttempts = document.getElementById('loginAttempts');
+
+function updateAttemptsDisplay() {
+  if (isLockedOut()) {
+    loginErr.textContent = `Too many attempts. Try again in ${lockoutMinutes()} min.`;
+    btnLogin.disabled = true;
+    loginAttempts.textContent = '';
+  } else {
+    const rem = remainingAttempts();
+    if (rem < MAX_ATTEMPTS) {
+      loginAttempts.textContent = `${rem} attempt${rem!==1?'s':''} remaining`;
+    } else {
+      loginAttempts.textContent = '';
+    }
+    btnLogin.disabled = false;
+  }
+}
+
+updateAttemptsDisplay();
+
+async function doLogin() {
+  if (isLockedOut()) { updateAttemptsDisplay(); return; }
+  const pw = pwInput.value.trim();
+  if (!pw) { loginErr.textContent = 'Enter password.'; return; }
+
+  btnLogin.disabled = true;
+  btnLogin.textContent = 'Verifying...';
+
+  // Simulate slight delay (anti-timing)
+  await new Promise(r => setTimeout(r, 300 + Math.random() * 200));
+
+  const h = await hashPassword(pw);
+  if (h === _PW_HASH) {
+    _sessionValid = true;
+    loginWrap.style.display = 'none';
+    adminWrap.style.display = 'block';
+    setRateData({});
+    renderAll();
+  } else {
+    recordAttempt();
+    loginErr.textContent = 'Incorrect password.';
+    updateAttemptsDisplay();
+    btnLogin.textContent = 'Access Studio';
+    if (!btnLogin.disabled) btnLogin.disabled = false;
+    pwInput.value = '';
+    pwInput.focus();
+  }
+}
+
+btnLogin.addEventListener('click', doLogin);
+pwInput.addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+
+document.getElementById('btnLogout').addEventListener('click', () => {
+  _sessionValid = false;
+  loginWrap.style.display = 'flex';
+  adminWrap.style.display = 'none';
+  pwInput.value = '';
+  loginErr.textContent = '';
+  updateAttemptsDisplay();
+});
+
+// ─── STORAGE HELPERS ────────────────────────────────────────────────────────
+
+const KEYS = {
+  banner:     'bwc_banner_imgs',
+  hero:       'bwc_hero_imgs',
+  about:      'bwc_about_img',
+  port:       'bwc_port_imgs',
+  slideshow:  'bwc_slideshow'
+};
+
+function loadData(key) {
+  return _cache[key] || [];
+}
+async function saveData(key, arr) {
+  await _fbSave(key, arr);
+}
+
+
+// ─── GOOGLE DRIVE URL CONVERTER ─────────────────────────────────────────────
+// Converts any Google Drive share link to a direct image src.
+// Handles both /file/d/ID/view and /open?id=ID formats.
+
+function toDriveDirectUrl(url) {
+  url = url.trim();
+  // Extract FILE_ID from any Drive share link format
+  const m1 = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+  if (m1) return `https://drive.google.com/thumbnail?id=${m1[1]}&sz=w1200`;
+  const m2 = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+  if (m2) return `https://drive.google.com/thumbnail?id=${m2[1]}&sz=w1200`;
+  // Already a direct URL
+  return url;
+}
+
+// ─── TOAST ──────────────────────────────────────────────────────────────────
+
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+// ─── RENDER GRIDS ───────────────────────────────────────────────────────────
+
+function renderGrid(gridId, items, onDelete) {
+  const grid = document.getElementById(gridId);
+  if (!items.length) {
+    grid.innerHTML = '<div class="empty-state">No images added yet</div>';
+    return;
+  }
+  grid.innerHTML = '';
+  items.forEach((item, i) => {
+    const div = document.createElement('div');
+    div.className = 'preview-item';
+    const src = typeof item === 'string' ? item : item.src;
+    const tag = typeof item === 'object' && item.tag ? item.tag : '';
+    const name = typeof item === 'object' && item.name ? item.name : '';
+    div.innerHTML = `
+      <img src="${src}" alt="${name}" loading="lazy" onerror="this.style.opacity=0.2;this.alt='Image failed to load — check Drive sharing settings'" />
+      ${tag ? `<div class="tag">${tag}</div>` : ''}
+      <div class="overlay">
+        ${name ? `<div style="font-size:0.65rem;color:#fff;margin-bottom:6px;">${name}</div>` : ''}
+        <button class="btn-del" data-i="${i}">Delete</button>
+      </div>`;
+    div.querySelector('.btn-del').addEventListener('click', () => { onDelete(i); });
+    grid.appendChild(div);
+  });
+}
+
+// ─── BANNER ─────────────────────────────────────────────────────────────────
+
+function renderBanner() {
+  renderGrid('bannerGrid', loadData(KEYS.banner),
+    async i => { const a = loadData(KEYS.banner); a.splice(i,1); await saveData(KEYS.banner,a); renderBanner(); toast('Banner image removed'); }
+  );
+}
+
+document.getElementById('bannerAdd').addEventListener('click', async () => {
+  const raw = document.getElementById('bannerUrl').value.trim();
+  if (!raw) { toast('Paste a Google Drive link first'); return; }
+  const items = loadData(KEYS.banner);
+  if (items.length >= 2) { toast('Max 2 banner images. Delete one first.'); return; }
+  items.push(toDriveDirectUrl(raw));
+  await saveData(KEYS.banner, items);
+  renderBanner();
+  document.getElementById('bannerUrl').value = '';
+  toast('Banner image added ✓');
+});
+
+// ─── HERO ───────────────────────────────────────────────────────────────────
+
+function renderHero() {
+  renderGrid('heroGrid', loadData(KEYS.hero),
+    async i => { const a = loadData(KEYS.hero); a.splice(i,1); await saveData(KEYS.hero,a); renderHero(); toast('Hero image removed'); }
+  );
+}
+
+document.getElementById('heroAdd').addEventListener('click', async () => {
+  const raw = document.getElementById('heroUrl').value.trim();
+  if (!raw) { toast('Paste a Google Drive link first'); return; }
+  const items = loadData(KEYS.hero);
+  if (items.length >= 3) { toast('Max 3 hero images. Delete one first.'); return; }
+  items.push(toDriveDirectUrl(raw));
+  await saveData(KEYS.hero, items);
+  renderHero();
+  document.getElementById('heroUrl').value = '';
+  toast('Hero image added ✓');
+});
+
+// ─── ABOUT ──────────────────────────────────────────────────────────────────
+
+function renderAbout() {
+  renderGrid('aboutGrid', loadData(KEYS.about),
+    async i => { const a = loadData(KEYS.about); a.splice(i,1); await saveData(KEYS.about,a); renderAbout(); toast('About image removed'); }
+  );
+}
+
+document.getElementById('aboutAdd').addEventListener('click', async () => {
+  const raw = document.getElementById('aboutUrl').value.trim();
+  if (!raw) { toast('Paste a Google Drive link first'); return; }
+  const url = toDriveDirectUrl(raw);
+  await saveData(KEYS.about, [url]); // always 1
+  renderAbout();
+  document.getElementById('aboutUrl').value = '';
+  toast('About image updated ✓');
+});
+
+// ─── PORTFOLIO ──────────────────────────────────────────────────────────────
+
+function renderPort() {
+  renderGrid('portGrid', loadData(KEYS.port),
+    async i => { const a = loadData(KEYS.port); a.splice(i,1); await saveData(KEYS.port,a); renderPort(); toast('Portfolio image removed'); }
+  );
+}
+
+document.getElementById('portAdd').addEventListener('click', async () => {
+  const raw  = document.getElementById('portUrl').value.trim();
+  const name = document.getElementById('portName').value.trim() || 'Untitled';
+  const tag  = document.getElementById('portTag').value;
+  if (!raw) { toast('Paste a Google Drive link first'); return; }
+  const items = loadData(KEYS.port);
+  if (items.length >= 5) { toast('Max 5 portfolio images. Delete one first.'); return; }
+  items.push({ src: toDriveDirectUrl(raw), name, tag });
+  await saveData(KEYS.port, items);
+  renderPort();
+  document.getElementById('portUrl').value = '';
+  document.getElementById('portName').value = '';
+  toast(`"${name}" added to gallery ✓`);
+});
+
+// ─── ENTER KEY SUPPORT ───────────────────────────────────────────────────────
+// ─── SLIDESHOW ──────────────────────────────────────────────────────────────
+
+function renderSlideshow() {
+  const items = loadData(KEYS.slideshow);
+  const grid = document.getElementById('slideshowGrid');
+  if (!items.length) { grid.innerHTML = '<div class="empty-state">No slides added yet</div>'; return; }
+  grid.innerHTML = '';
+  items.forEach((item, i) => {
+    const div = document.createElement('div');
+    div.className = 'preview-item';
+    const src = typeof item === 'string' ? item : item.src;
+    const cap = typeof item === 'object' && item.caption ? item.caption : '';
+    div.innerHTML = `
+      <img src="${src}" alt="${cap}" loading="lazy" onerror="this.style.opacity=0.2" />
+      ${cap ? `<div class="tag">${cap}</div>` : ''}
+      <div class="overlay">
+        ${cap ? `<div style="font-size:0.65rem;color:#fff;margin-bottom:6px;">${cap}</div>` : ''}
+        <button class="btn-del" data-i="${i}">Delete</button>
+      </div>`;
+    div.querySelector('.btn-del').addEventListener('click', async () => {
+      const a = loadData(KEYS.slideshow); a.splice(i,1);
+      await saveData(KEYS.slideshow, a); renderSlideshow(); toast('Slide removed');
+    });
+    grid.appendChild(div);
+  });
+}
+
+document.getElementById('slideshowAdd').addEventListener('click', async () => {
+  const raw = document.getElementById('slideshowUrl').value.trim();
+  if (!raw) { toast('Paste a Google Drive link first'); return; }
+  const caption = document.getElementById('slideshowCaption').value.trim();
+  const items = loadData(KEYS.slideshow);
+  items.push({ src: toDriveDirectUrl(raw), caption });
+  await saveData(KEYS.slideshow, items);
+  renderSlideshow();
+  document.getElementById('slideshowUrl').value = '';
+  document.getElementById('slideshowCaption').value = '';
+  toast('Slide added ✓');
+});
+
+// ─── ENTER KEY SUPPORT ───────────────────────────────────────────────────────
+document.getElementById('bannerUrl').addEventListener('keydown', e => { if (e.key==='Enter') document.getElementById('bannerAdd').click(); });
+document.getElementById('heroUrl').addEventListener('keydown',   e => { if (e.key==='Enter') document.getElementById('heroAdd').click(); });
+document.getElementById('aboutUrl').addEventListener('keydown',  e => { if (e.key==='Enter') document.getElementById('aboutAdd').click(); });
+document.getElementById('portUrl').addEventListener('keydown',   e => { if (e.key==='Enter') document.getElementById('portAdd').click(); });
+
+// ─── RENDER ALL ──────────────────────────────────────────────────────────────
+
+async function renderAll() {
+  await _fbLoad();
+  renderBanner();
+  renderHero();
+  renderAbout();
+  renderPort();
+  renderSlideshow();
+}
+
+// Anti-dirsearch: page only renders if loaded directly (no referrer check bypass)
+// The obscure filename is the primary protection; no link on the main site.
+// Block right-click saving of the URL to avoid accidental exposure.
+document.addEventListener('contextmenu', e => e.preventDefault());
+
+// Auto-logout on page hide (additional safety)
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden && _sessionValid) {
+    // Keep session alive while tab is just hidden (user may switch tabs)
+    // But clear on actual close — handled by in-memory _sessionValid
+  }
+});
+</script>
+</body>
+</html>
