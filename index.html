@@ -266,9 +266,7 @@
       position: relative; overflow: hidden;
     }
     .about-img-main::before {
-      content: '';
-      position: absolute; inset: 0;
-      background: radial-gradient(ellipse at 40% 60%, #252525 0%, transparent 70%);
+      display: none;
     }
     .about-img-accent {
       position: absolute; bottom: -30px; right: -30px;
@@ -519,6 +517,25 @@
       position: absolute; inset: 0;
       object-fit: contain;
       object-position: center;
+    }
+    /* Video slide — iframe fills full container */
+    .slide-video {
+      position: absolute; inset: 0;
+      width: 100%; height: 100%;
+      border: none;
+      background: #000;
+    }
+    /* Video slides don't get blurred bg (iframe can't be blurred) */
+    .slide.is-video .slide-overlay { display: none; }
+    /* Pause indicator badge shown on video slides */
+    .slide.is-video::after {
+      content: '⏸ Slideshow paused';
+      position: absolute; top: 16px; right: 20px; z-index: 20;
+      font-size: 0.58rem; letter-spacing: 0.18em; text-transform: uppercase;
+      color: rgba(255,255,255,0.55);
+      background: rgba(0,0,0,0.45);
+      padding: 5px 10px;
+      pointer-events: none;
     }
     .slide-overlay {
       position: absolute; inset: 0;
@@ -1318,9 +1335,8 @@
             main.querySelectorAll('img').forEach(el => el.remove());
             const img = document.createElement('img');
             img.src = src; img.alt = 'About us';
-            // About container is portrait (3/4 ratio) — landscape images get contained
-            const fit = getObjectFit(aspectRatio, 'portrait');
-            img.style.cssText = `width:100%;height:100%;object-fit:${fit};object-position:center;display:block;background:#111;`;
+            // Always cover — container is fixed 3/4 ratio, image must fill it
+            img.style.cssText = `width:100%;height:100%;object-fit:cover;object-position:center top;display:block;background:#111;`;
             main.insertBefore(img, main.firstChild);
           }
         }
@@ -1380,21 +1396,32 @@
 
           // Build slides
           slideshowItems.forEach((item, i) => {
-            const src = normalizeDriveUrl(typeof item === 'string' ? item : item.src);
+            const isVideo = typeof item === 'object' && item.type === 'video';
             const cap = typeof item === 'object' ? (item.caption || '') : '';
             const ratio = typeof item === 'object' && item.ratio ? parseFloat(item.ratio) : null;
-            ratios.push(ratio); // w/h — e.g. 0.75 = portrait, 1.78 = landscape
+            ratios.push(isVideo ? 1.78 : ratio); // videos use 16:9 default
 
             const slide = document.createElement('div');
-            slide.className = 'slide' + (i === 0 ? ' active' : '');
-            // Blurred bg fills container regardless of image ratio
-            // Main image uses object-fit:contain (set by CSS) so full image is always visible
-            slide.innerHTML = `
-              <img class="slide-bg-blur" src="${src}" alt="" aria-hidden="true" />
-              <img src="${src}" alt="${cap}" loading="lazy" />
-              <div class="slide-overlay"></div>
-              ${cap ? `<div class="slide-caption">${cap}</div>` : ''}
-            `;
+            slide.className = 'slide' + (i === 0 ? ' active' : '') + (isVideo ? ' is-video' : '');
+
+            if (isVideo) {
+              // Render iframe — src set only when active to avoid background autoplay
+              slide.dataset.embedUrl = item.embedUrl || '';
+              slide.innerHTML = `
+                <div class="slide-overlay"></div>
+                ${cap ? `<div class="slide-caption">${cap}</div>` : ''}
+              `;
+              // iframe injected on first activation to prevent preload
+            } else {
+              const src = normalizeDriveUrl(typeof item === 'string' ? item : item.src);
+              slide.innerHTML = `
+                <img class="slide-bg-blur" src="${src}" alt="" aria-hidden="true" />
+                <img src="${src}" alt="${cap}" loading="lazy" />
+                <div class="slide-overlay"></div>
+                ${cap ? `<div class="slide-caption">${cap}</div>` : ''}
+              `;
+            }
+
             inner.insertBefore(slide, document.getElementById('slideDots'));
 
             const dot = document.createElement('button');
@@ -1420,25 +1447,56 @@
             inner.style.height = h + 'px';
           }
 
+          // Inject iframe only when slide is active (prevents background autoplay)
+          function activateVideoSlide(slide) {
+            if (!slide.classList.contains('is-video')) return;
+            if (slide.querySelector('.slide-video')) return;
+            const url = slide.dataset.embedUrl;
+            if (!url) return;
+            const iframe = document.createElement('iframe');
+            iframe.className = 'slide-video';
+            iframe.src = url;
+            iframe.allow = 'autoplay; fullscreen; picture-in-picture; encrypted-media';
+            iframe.allowFullscreen = true;
+            slide.insertBefore(iframe, slide.firstChild);
+          }
+
+          function deactivateVideoSlide(slide) {
+            if (!slide.classList.contains('is-video')) return;
+            const iframe = slide.querySelector('.slide-video');
+            if (iframe) iframe.remove(); // removing iframe kills playback
+          }
+
           function goTo(n) {
+            deactivateVideoSlide(slides[current]);
             slides[current].classList.remove('active');
             dots[current].classList.remove('active');
             current = (n + slides.length) % slides.length;
             slides[current].classList.add('active');
             dots[current].classList.add('active');
+            activateVideoSlide(slides[current]);
             updateHeight(current);
             clearInterval(timer);
-            timer = setInterval(() => goTo(current + 1), 5000);
+            // Auto-advance only for photo slides; videos play till user moves
+            if (!slides[current].classList.contains('is-video')) {
+              timer = setInterval(() => goTo(current + 1), 5000);
+            }
           }
 
           // Set initial height for first slide
           updateHeight(0);
           window.addEventListener('resize', () => updateHeight(current));
 
+          // Activate first slide if video
+          activateVideoSlide(slides[0]);
+
           document.getElementById('slideNext').addEventListener('click', () => goTo(current + 1));
           document.getElementById('slidePrev').addEventListener('click', () => goTo(current - 1));
 
-          timer = setInterval(() => goTo(current + 1), 5000);
+          // Start auto-advance only if first slide is a photo
+          if (!slides[0].classList.contains('is-video')) {
+            timer = setInterval(() => goTo(current + 1), 5000);
+          }
         }
 
       } catch(e) {
