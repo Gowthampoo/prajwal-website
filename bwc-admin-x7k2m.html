@@ -391,31 +391,56 @@
 
 <div id="toast"></div>
 
-<script type="module">
-// ─── FIREBASE ────────────────────────────────────────────────────────────────
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-import { getFirestore, doc, getDoc, setDoc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+<script>
+// ─── FIRESTORE REST API (no Firebase SDK — zero import dependencies) ──────────
+const _PROJECT = 'prajwal-6f7f1';
+const _API_KEY  = 'AIzaSyBEpoz0lzWSi42_Nl7YyoZvpGdLMSfDNDA';
+const _DOC_URL  = `https://firestore.googleapis.com/v1/projects/${_PROJECT}/databases/(default)/documents/site/images?key=${_API_KEY}`;
 
-const _fbApp = initializeApp({
-  apiKey: "AIzaSyBEpoz0lzWSi42_Nl7YyoZvpGdLMSfDNDA",
-  authDomain: "prajwal-6f7f1.firebaseapp.com",
-  projectId: "prajwal-6f7f1",
-  storageBucket: "prajwal-6f7f1.firebasestorage.app",
-  messagingSenderId: "264716592543",
-  appId: "1:264716592543:web:15294302ca029435f589aa",
-});
-const _db = getFirestore(_fbApp);
-const _docRef = doc(_db, 'site', 'images');
-
-// In-memory cache (loaded fresh on each login)
+// In-memory cache
 let _cache = {};
+
+// Firestore REST → plain JS object
+function _fromFirestore(fields) {
+  if (!fields) return {};
+  const out = {};
+  for (const [k, v] of Object.entries(fields)) {
+    if (v.arrayValue) {
+      out[k] = (v.arrayValue.values || []).map(el => {
+        if (el.stringValue !== undefined) return el.stringValue;
+        if (el.mapValue)   return _fromFirestore(el.mapValue.fields);
+        return null;
+      });
+    } else if (v.stringValue !== undefined) {
+      out[k] = v.stringValue;
+    } else if (v.mapValue) {
+      out[k] = _fromFirestore(v.mapValue.fields);
+    }
+  }
+  return out;
+}
+
+// Plain JS object → Firestore REST fields (only arrays/strings/maps)
+function _toFirestoreValue(val) {
+  if (Array.isArray(val)) {
+    return { arrayValue: { values: val.map(_toFirestoreValue) } };
+  }
+  if (val !== null && typeof val === 'object') {
+    const fields = {};
+    for (const [k, v] of Object.entries(val)) fields[k] = _toFirestoreValue(v);
+    return { mapValue: { fields } };
+  }
+  return { stringValue: String(val ?? '') };
+}
 
 async function _fbLoad() {
   try {
-    const snap = await getDoc(_docRef);
-    _cache = snap.exists() ? snap.data() : {};
+    const r = await fetch(_DOC_URL);
+    if (r.status === 404) { _cache = {}; return; }
+    const d = await r.json();
+    _cache = _fromFirestore(d.fields || {});
   } catch(e) {
-    console.warn('Firebase load failed, using empty cache:', e);
+    console.warn('Firestore load failed:', e);
     _cache = {};
   }
 }
@@ -423,10 +448,22 @@ async function _fbLoad() {
 async function _fbSave(key, arr) {
   _cache[key] = arr;
   try {
-    await setDoc(_docRef, { [key]: arr }, { merge: true });
+    // PATCH with updateMask so we only touch this one field
+    const patchUrl = `https://firestore.googleapis.com/v1/projects/${_PROJECT}/databases/(default)/documents/site/images?key=${_API_KEY}&updateMask.fieldPaths=${encodeURIComponent(key)}`;
+    const body = { fields: { [key]: _toFirestoreValue(arr) } };
+    const r = await fetch(patchUrl, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!r.ok) {
+      const err = await r.json().catch(()=>({}));
+      console.error('Firestore save error:', err);
+      toast('⚠️ Save failed — check Firestore rules');
+    }
   } catch(e) {
-    console.error('Firebase save error:', e);
-    toast('⚠️ Save failed — check Firestore rules in Firebase console');
+    console.error('Firestore save error:', e);
+    toast('⚠️ Save failed — check network / Firestore rules');
   }
 }
 
@@ -596,6 +633,24 @@ function toDriveDirectUrl(url) {
   return url;
 }
 
+// ─── ASPECT RATIO DETECTOR ──────────────────────────────────────────────────
+// Returns { label: "portrait"|"landscape"|"square", ratio: w/h (e.g. 0.75) }
+function detectAspect(src) {
+  return new Promise(resolve => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      const w = img.naturalWidth, h = img.naturalHeight;
+      const r = w / h;
+      const label = r > 1.1 ? 'landscape' : r < 0.91 ? 'portrait' : 'square';
+      resolve({ label, ratio: parseFloat(r.toFixed(4)) });
+    };
+    img.onerror = () => resolve({ label: 'landscape', ratio: 1.78 });
+    img.src = src;
+    setTimeout(() => resolve({ label: 'landscape', ratio: 1.78 }), 6000);
+  });
+}
+
 // ─── TOAST ──────────────────────────────────────────────────────────────────
 
 function toast(msg) {
@@ -655,11 +710,14 @@ document.getElementById('bannerAdd').addEventListener('click', async () => {
   if (!raw) { toast('Paste a Google Drive link first'); return; }
   const items = loadData(KEYS.banner);
   if (items.length >= 2) { toast('Max 2 banner images. Delete one first.'); return; }
-  items.push(toDriveDirectUrl(raw));
+  toast('Detecting image…');
+  const src = toDriveDirectUrl(raw);
+  const { label: aspectRatio, ratio } = await detectAspect(src);
+  items.push({ src, aspectRatio, ratio });
   await saveData(KEYS.banner, items);
   renderBanner();
   document.getElementById('bannerUrl').value = '';
-  toast('Banner image added ✓');
+  toast(`Banner image added ✓ (${aspectRatio} ${ratio})`);
 });
 
 // ─── HERO ───────────────────────────────────────────────────────────────────
@@ -675,11 +733,14 @@ document.getElementById('heroAdd').addEventListener('click', async () => {
   if (!raw) { toast('Paste a Google Drive link first'); return; }
   const items = loadData(KEYS.hero);
   if (items.length >= 3) { toast('Max 3 hero images. Delete one first.'); return; }
-  items.push(toDriveDirectUrl(raw));
+  toast('Detecting image…');
+  const src = toDriveDirectUrl(raw);
+  const { label: aspectRatio, ratio } = await detectAspect(src);
+  items.push({ src, aspectRatio, ratio });
   await saveData(KEYS.hero, items);
   renderHero();
   document.getElementById('heroUrl').value = '';
-  toast('Hero image added ✓');
+  toast(`Hero image added ✓ (${aspectRatio} ${ratio})`);
 });
 
 // ─── ABOUT ──────────────────────────────────────────────────────────────────
@@ -693,11 +754,13 @@ function renderAbout() {
 document.getElementById('aboutAdd').addEventListener('click', async () => {
   const raw = document.getElementById('aboutUrl').value.trim();
   if (!raw) { toast('Paste a Google Drive link first'); return; }
-  const url = toDriveDirectUrl(raw);
-  await saveData(KEYS.about, [url]); // always 1
+  toast('Detecting image…');
+  const src = toDriveDirectUrl(raw);
+  const { label: aspectRatio, ratio } = await detectAspect(src);
+  await saveData(KEYS.about, [{ src, aspectRatio, ratio }]); // always 1
   renderAbout();
   document.getElementById('aboutUrl').value = '';
-  toast('About image updated ✓');
+  toast(`About image updated ✓ (${aspectRatio} ${ratio})`);
 });
 
 // ─── PORTFOLIO ──────────────────────────────────────────────────────────────
@@ -715,12 +778,15 @@ document.getElementById('portAdd').addEventListener('click', async () => {
   if (!raw) { toast('Paste a Google Drive link first'); return; }
   const items = loadData(KEYS.port);
   if (items.length >= 5) { toast('Max 5 portfolio images. Delete one first.'); return; }
-  items.push({ src: toDriveDirectUrl(raw), name, tag });
+  toast('Detecting image…');
+  const src = toDriveDirectUrl(raw);
+  const { label: aspectRatio, ratio } = await detectAspect(src);
+  items.push({ src, name, tag, aspectRatio, ratio });
   await saveData(KEYS.port, items);
   renderPort();
   document.getElementById('portUrl').value = '';
   document.getElementById('portName').value = '';
-  toast(`"${name}" added to gallery ✓`);
+  toast(`"${name}" added to gallery ✓ (${aspectRatio} ${ratio})`);
 });
 
 // ─── ENTER KEY SUPPORT ───────────────────────────────────────────────────────
@@ -765,12 +831,15 @@ document.getElementById('slideshowAdd').addEventListener('click', async () => {
   if (!raw) { toast('Paste a Google Drive link first'); return; }
   const caption = document.getElementById('slideshowCaption').value.trim();
   const items = loadData(KEYS.slideshow);
-  items.push({ src: toDriveDirectUrl(raw), caption });
+  toast('Detecting image…');
+  const src = toDriveDirectUrl(raw);
+  const { label: aspectRatio, ratio } = await detectAspect(src);
+  items.push({ src, caption, aspectRatio, ratio });
   await saveData(KEYS.slideshow, items);
   renderSlideshow();
   document.getElementById('slideshowUrl').value = '';
   document.getElementById('slideshowCaption').value = '';
-  toast('Slide added ✓');
+  toast(`Slide added ✓ (${aspectRatio} ${ratio})`);
 });
 
 // ─── ENTER KEY SUPPORT ───────────────────────────────────────────────────────
