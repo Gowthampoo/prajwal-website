@@ -363,25 +363,33 @@
     <div class="section-card">
       <div class="section-header">
         <div class="section-title-sm">✨ Slideshow Gallery</div>
-        <div class="section-badge">Full-screen Slideshow · Unlimited images</div>
+        <div class="section-badge">Full-screen Slideshow · Photos &amp; Videos</div>
       </div>
       <div class="url-zone">
         <div class="url-how">
-          <strong>Where it appears:</strong> A dedicated full-screen slideshow section on your website — images transition with a cinematic fade effect.<br>
-          <strong>How to add:</strong> Paste individual Google Drive image share links one by one. Give each a caption (optional). No image limit.
+          <strong>Where it appears:</strong> A dedicated full-screen slideshow section — photos fade in/out, videos play inline.<br>
+          <strong>Supported links:</strong>
+          <ol>
+            <li><strong>Photos:</strong> Google Drive share link (drive.google.com/file/…)</li>
+            <li><strong>YouTube:</strong> Any youtube.com or youtu.be link</li>
+            <li><strong>Vimeo:</strong> Any vimeo.com link</li>
+            <li><strong>Drive Video:</strong> Google Drive share link to a video file — same format as photos</li>
+          </ol>
+          The panel auto-detects photo vs video from the URL.
         </div>
         <div class="url-row" style="flex-wrap:wrap;gap:10px;">
           <div class="url-label-group" style="flex:2;min-width:200px;">
-            <label>Image Link</label>
-            <input type="text" id="slideshowUrl" placeholder="Paste Google Drive share link here…" />
+            <label>Photo or Video Link</label>
+            <input type="text" id="slideshowUrl" placeholder="Drive, YouTube, or Vimeo link…" />
           </div>
           <div class="url-label-group" style="flex:1;min-width:160px;">
             <label>Caption (optional)</label>
             <input type="text" id="slideshowCaption" placeholder="e.g. Rohan &amp; Nisha, Goa 2024" />
           </div>
-          <button class="btn-add-url" id="slideshowAdd" style="align-self:flex-end;">Add Slide</button>
+          <button class="btn-add-url" id="slideshowAdd" style="align-self:flex-end;">Add Photo</button>
+          <button class="btn-add-url" id="slideshowAddVideo" style="align-self:flex-end;background:rgba(255,255,255,0.08);color:var(--white);border:1px solid rgba(255,255,255,0.2);">▶ Add as Drive Video</button>
         </div>
-        <div style="font-size:0.65rem;color:rgba(255,255,255,0.2);margin-top:6px;">Add as many images as you like. They play in order, looping forever.</div>
+        <div style="font-size:0.65rem;color:rgba(255,255,255,0.2);margin-top:6px;">YouTube/Vimeo auto-detected. For Google Drive videos, paste the Drive share link and click <strong style="color:rgba(255,255,255,0.35);">▶ Add as Drive Video</strong>. For Drive photos, click <strong style="color:rgba(255,255,255,0.35);">Add Photo</strong>.</div>
       </div>
       <div class="preview-strip" id="slideshowGrid"></div>
     </div>
@@ -633,7 +641,49 @@ function toDriveDirectUrl(url) {
   return url;
 }
 
-// ─── ASPECT RATIO DETECTOR ──────────────────────────────────────────────────
+// ─── VIDEO URL DETECTOR ─────────────────────────────────────────────────────
+// Returns null for images, or { platform, embedUrl, thumbUrl } for videos.
+function detectVideoUrl(raw) {
+  raw = raw.trim();
+
+  // YouTube: youtube.com/watch?v=ID  or  youtu.be/ID  or  youtube.com/shorts/ID
+  const yt1 = raw.match(/(?:youtube\.com\/watch\?.*v=|youtu\.be\/|youtube\.com\/shorts\/)([a-zA-Z0-9_-]{11})/);
+  if (yt1) {
+    const id = yt1[1];
+    return {
+      platform: 'youtube',
+      embedUrl: `https://www.youtube.com/embed/${id}?autoplay=1&mute=1&controls=1&rel=0`,
+      thumbUrl: `https://img.youtube.com/vi/${id}/hqdefault.jpg`,
+      videoId: id,
+    };
+  }
+
+  // Vimeo: vimeo.com/ID
+  const vi = raw.match(/vimeo\.com\/(\d+)/);
+  if (vi) {
+    return {
+      platform: 'vimeo',
+      embedUrl: `https://player.vimeo.com/video/${vi[1]}?autoplay=1&muted=1`,
+      thumbUrl: null, // fetched async if needed
+      videoId: vi[1],
+    };
+  }
+
+  // Google Drive video: same share link format — detected by checking after image load fails
+  // We mark it as drive-video only when user explicitly has a Drive link (handled in add handler)
+  return null; // not a video
+}
+
+// Converts Drive share link to video embed URL (for Drive-hosted videos)
+function toDriveVideoEmbed(url) {
+  const m1 = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+  if (m1) return { platform: 'drive', embedUrl: `https://drive.google.com/file/d/${m1[1]}/preview`, thumbUrl: null, videoId: m1[1] };
+  const m2 = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+  if (m2) return { platform: 'drive', embedUrl: `https://drive.google.com/file/d/${m2[1]}/preview`, thumbUrl: null, videoId: m2[1] };
+  return null;
+}
+
+
 // Returns { label: "portrait"|"landscape"|"square", ratio: w/h (e.g. 0.75) }
 function detectAspect(src) {
   return new Promise(resolve => {
@@ -800,24 +850,41 @@ function renderSlideshow() {
   items.forEach((item, i) => {
     const div = document.createElement('div');
     div.className = 'preview-item';
-    const src = typeof item === 'string' ? item : item.src;
+    const isVideo = typeof item === 'object' && item.type === 'video';
     const cap = typeof item === 'object' && item.caption ? item.caption : '';
-    div.innerHTML = `
-      <img src="${src}" alt="${cap}" loading="lazy" onerror="this.style.opacity=0.2" />
-      ${cap ? `<div class="tag">${cap}</div>` : ''}
-      <div class="aspect-badge">—</div>
-      <div class="overlay">
-        ${cap ? `<div style="font-size:0.65rem;color:#fff;margin-bottom:6px;">${cap}</div>` : ''}
-        <button class="btn-del" data-i="${i}">Delete</button>
-      </div>`;
-    const sImg = div.querySelector('img');
-    const sBadge = div.querySelector('.aspect-badge');
-    sImg.addEventListener('load', () => {
-      const w = sImg.naturalWidth, h = sImg.naturalHeight;
-      const g = (a,b) => b === 0 ? a : g(b, a % b);
-      const d = g(w,h);
-      sBadge.textContent = `${w/d}:${h/d} (${w}×${h})`;
-    });
+
+    if (isVideo) {
+      const thumb = item.thumbUrl || '';
+      const platform = item.platform || 'video';
+      const platformLabel = { youtube: '▶ YouTube', vimeo: '▶ Vimeo', drive: '▶ Drive Video' }[platform] || '▶ Video';
+      div.innerHTML = `
+        ${thumb ? `<img src="${thumb}" alt="${cap}" loading="lazy" style="width:100%;height:100%;object-fit:cover;" />` : `<div style="width:100%;height:100%;background:#1a1a1a;display:flex;align-items:center;justify-content:center;font-size:2rem;">▶</div>`}
+        <div class="tag">${platformLabel}</div>
+        <div class="aspect-badge">video</div>
+        ${cap ? `<div class="tag" style="top:auto;bottom:8px;left:8px;">${cap}</div>` : ''}
+        <div class="overlay">
+          ${cap ? `<div style="font-size:0.65rem;color:#fff;margin-bottom:6px;">${cap}</div>` : ''}
+          <button class="btn-del" data-i="${i}">Delete</button>
+        </div>`;
+    } else {
+      const src = typeof item === 'string' ? item : item.src;
+      div.innerHTML = `
+        <img src="${src}" alt="${cap}" loading="lazy" onerror="this.style.opacity=0.2" />
+        ${cap ? `<div class="tag">${cap}</div>` : ''}
+        <div class="aspect-badge">—</div>
+        <div class="overlay">
+          ${cap ? `<div style="font-size:0.65rem;color:#fff;margin-bottom:6px;">${cap}</div>` : ''}
+          <button class="btn-del" data-i="${i}">Delete</button>
+        </div>`;
+      const sImg = div.querySelector('img');
+      const sBadge = div.querySelector('.aspect-badge');
+      sImg.addEventListener('load', () => {
+        const w = sImg.naturalWidth, h = sImg.naturalHeight;
+        const g = (a,b) => b === 0 ? a : g(b, a % b);
+        const d = g(w,h);
+        sBadge.textContent = `${w/d}:${h/d} (${w}×${h})`;
+      });
+    }
     div.querySelector('.btn-del').addEventListener('click', async () => {
       const a = loadData(KEYS.slideshow); a.splice(i,1);
       await saveData(KEYS.slideshow, a); renderSlideshow(); toast('Slide removed');
@@ -828,18 +895,97 @@ function renderSlideshow() {
 
 document.getElementById('slideshowAdd').addEventListener('click', async () => {
   const raw = document.getElementById('slideshowUrl').value.trim();
-  if (!raw) { toast('Paste a Google Drive link first'); return; }
+  if (!raw) { toast('Paste a link first'); return; }
   const caption = document.getElementById('slideshowCaption').value.trim();
   const items = loadData(KEYS.slideshow);
-  toast('Detecting image…');
+
+  // Check if it's a YouTube or Vimeo video
+  const videoInfo = detectVideoUrl(raw);
+  if (videoInfo) {
+    items.push({ type: 'video', caption, ...videoInfo });
+    await saveData(KEYS.slideshow, items);
+    renderSlideshow();
+    document.getElementById('slideshowUrl').value = '';
+    document.getElementById('slideshowCaption').value = '';
+    toast(`Video added ✓ (${videoInfo.platform})`);
+    return;
+  }
+
+  // Check if it's a Drive link — could be image OR video
+  // Try as image first; if it has a video mime type it'll fail to load as img
+  // We give the user a choice via the URL structure:
+  // Drive image links work as thumbnails; Drive video links we embed directly
+  // Heuristic: if user pastes drive link, try image first, fall back to video embed
+  toast('Detecting…');
   const src = toDriveDirectUrl(raw);
   const { label: aspectRatio, ratio } = await detectAspect(src);
+
+  // detectAspect returns landscape fallback on error — check if image actually loaded
+  // We do a secondary check: if ratio is exactly the fallback 1.78 AND it was an error,
+  // treat as Drive video
+  const imgTest = await new Promise(res => {
+    const t = new Image();
+    t.onload = () => res(true);
+    t.onerror = () => res(false);
+    t.src = src;
+    setTimeout(() => res(false), 5000);
+  });
+
+  if (!imgTest) {
+    // Likely a Drive video — embed it
+    const driveVid = toDriveVideoEmbed(raw);
+    if (driveVid) {
+      items.push({ type: 'video', caption, ...driveVid });
+      await saveData(KEYS.slideshow, items);
+      renderSlideshow();
+      document.getElementById('slideshowUrl').value = '';
+      document.getElementById('slideshowCaption').value = '';
+      toast('Drive video added ✓');
+      return;
+    }
+    toast('⚠️ Could not load — check sharing settings');
+    return;
+  }
+
   items.push({ src, caption, aspectRatio, ratio });
   await saveData(KEYS.slideshow, items);
   renderSlideshow();
   document.getElementById('slideshowUrl').value = '';
   document.getElementById('slideshowCaption').value = '';
-  toast(`Slide added ✓ (${aspectRatio} ${ratio})`);
+  toast(`Photo added ✓ (${aspectRatio} ${ratio})`);
+});
+
+// ─── FORCE ADD AS DRIVE VIDEO ────────────────────────────────────────────────
+document.getElementById('slideshowAddVideo').addEventListener('click', async () => {
+  const raw = document.getElementById('slideshowUrl').value.trim();
+  if (!raw) { toast('Paste a Drive share link first'); return; }
+  const caption = document.getElementById('slideshowCaption').value.trim();
+  const items = loadData(KEYS.slideshow);
+
+  // First check if it's YouTube/Vimeo (handle gracefully)
+  const videoInfo = detectVideoUrl(raw);
+  if (videoInfo) {
+    items.push({ type: 'video', caption, ...videoInfo });
+    await saveData(KEYS.slideshow, items);
+    renderSlideshow();
+    document.getElementById('slideshowUrl').value = '';
+    document.getElementById('slideshowCaption').value = '';
+    toast(`Video added ✓ (${videoInfo.platform})`);
+    return;
+  }
+
+  // Force treat as Drive video
+  const driveVid = toDriveVideoEmbed(raw);
+  if (driveVid) {
+    items.push({ type: 'video', caption, ...driveVid });
+    await saveData(KEYS.slideshow, items);
+    renderSlideshow();
+    document.getElementById('slideshowUrl').value = '';
+    document.getElementById('slideshowCaption').value = '';
+    toast('Drive video added ✓ — make sure sharing is set to "Anyone with link"');
+    return;
+  }
+  toast('⚠️ Not a valid Drive link. Use a drive.google.com/file/d/… link.');
 });
 
 // ─── ENTER KEY SUPPORT ───────────────────────────────────────────────────────
